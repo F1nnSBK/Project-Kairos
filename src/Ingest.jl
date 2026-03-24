@@ -1,7 +1,7 @@
 module Ingest
 
 using HTTP, JSON3, Dates, LinearAlgebra
-using ..Model
+using Model
 
 export Article, ARTICLE_POOL, update_news!, POOL_LOCK
 
