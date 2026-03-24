@@ -7,7 +7,6 @@ using Statistics
 
 export get_mrl_embedding
 
-# Wir nutzen ein Ref, um die Session vor dem Garbage Collector zu schützen
 const SESSION = Ref{Any}(nothing)
 
 function get_session()
@@ -18,13 +17,11 @@ function get_session()
 end
 
 function get_mrl_embedding(text::String, dim::Int = 768)
-	# Dummy-Tokenisierung (bis wir WordPiece morgen mappen)
 	tokens = WordTokenizers.tokenize(text)
 
-	# Inferenz mit der stabilen Session
 	session = get_session()
 
-	# Dummy-IDs für den Start-Run
+	# Placeholder logic for tokenization
 	dummy_ids = collect(1:min(length(tokens), 128))
 	ids = reshape(Int64.(dummy_ids), 1, :)
 

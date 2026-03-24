@@ -1,7 +1,7 @@
 module Ingest
 
 using HTTP, JSON3, Dates, LinearAlgebra
-using Model
+using ..Model
 
 export Article, ARTICLE_POOL, update_news!, POOL_LOCK
 
@@ -16,47 +16,56 @@ end
 const ARTICLE_POOL = Dict{String, Article}()
 const POOL_LOCK = ReentrantLock()
 
-function update_news!()
-	println("$(now()): Polling Tagesschau API...")
+const API_URL = "https://www.tagesschau.de/api2u/news/"
+const HEADERS = [
+	"User-Agent" => "Kairos-News-Engine/1.0",
+	"Accept" => "application/json",
+]
+const RETENTION_PERIOD = Hour(24)
+const EMBEDDING_DIM = 768
 
-	headers = [
-		"User-Agent" => "Kairos-News-Engine/1.0",
-		"Accept" => "application/json",
-	]
+"""
+	update_news!()
+
+Fetches latest news from Tagesschau, generates embeddings, and updates the global pool.
+"""
+function update_news!()
+	@info "Polling Tagesschau API..."
 
 	try
-		url = "https://www.tagesschau.de/api2u/news/"
-		response = HTTP.get(url, headers)
+		response = HTTP.get(API_URL, HEADERS)
 		data = JSON3.read(response.body)
-
 		new_count = 0
+
 		lock(POOL_LOCK) do
-			for item in data.news
-				id = get(item, :sophoraId, "")
-				title = get(item, :title, "")
-				topline = get(item, :topline, "")
-				first_sentence = get(item, :firstSentence, "")
-				link = get(item, :details, "")
+			for item in get(data, :news, [])
+				id = String(get(item, :sophoraId, ""))
 
-				embedding_input = "$topline: $title. $first_sentence"
-
-				if !isempty(id) && !haskey(ARTICLE_POOL, id)
-					# Generate 768-dim embedding via Model.jl
-					emb = get_mrl_embedding(embedding_input, 768)
-
-					ARTICLE_POOL[id] = Article(id, title, link, now(), emb)
-					new_count += 1
+				if isempty(id) || haskey(ARTICLE_POOL, id)
+					continue
 				end
+
+				title = String(get(item, :title, ""))
+				topline = String(get(item, :topline, ""))
+				first_sentence = String(get(item, :firstSentence, ""))
+				link = String(get(item, :details, ""))
+
+				# Generate embedding from combined text
+				input = "$topline: $title. $first_sentence"
+				emb = get_mrl_embedding(input, EMBEDDING_DIM)
+
+				ARTICLE_POOL[id] = Article(id, title, link, now(), emb)
+				new_count += 1
 			end
 
-			# Remove articles older than 24 hours
-			cleanup_limit = now() - Hour(24)
+			# Prune stale articles
+			cleanup_limit = now() - RETENTION_PERIOD
 			filter!(p -> p.second.timestamp > cleanup_limit, ARTICLE_POOL)
-
 		end
-		println("$(now()): Ingest complete. $new_count new articles. Pool size: $(length(ARTICLE_POOL))")
+
+		@info "Ingest complete" new_articles=new_count pool_size=length(ARTICLE_POOL)
 	catch e
-		@error "News ingest failed" exception=e
+		@error "News ingest failed" exception=(e, catch_backtrace())
 	end
 end
 

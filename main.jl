@@ -47,9 +47,8 @@ end
 	)
 end
 
-# WICHTIG: Erster Ingest VOR dem Serverstart, um zu sehen ob es klappt
-println("Initialer News-Ingest...")
+println("Initial News-Ingest...")
 Ingest.update_news!()
 
-println("🚀 Kairos Engine starting on Port 8080...")
+println("Kairos Engine starting on Port 8080...")
 serveparallel(port = 8080)
