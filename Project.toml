@@ -1,8 +1,10 @@
 [deps]
+DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 ONNXRunTime = "e034b28e-924e-41b2-b98f-d2bbeb830c6a"
 Oxygen = "df9a0d86-3283-4920-82dc-4555fc0d1d8b"
 SQLite = "0aa819cd-b072-5ff4-a722-6bc24af294d9"
 TextEncodeBase = "f92c20c0-9f2a-4705-8116-881385faba05"
+UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 WordTokenizers = "796a5d58-b03d-544a-977e-18100b691f6e"

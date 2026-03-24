@@ -4,7 +4,7 @@ using SQLite
 using Serialization
 using DBInterface
 
-import ..BanditCore: UserProfile
+import BanditCore.UserProfile
 
 const DB_PATH = "data/kairos.db"
 

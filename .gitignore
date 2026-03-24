@@ -48,3 +48,4 @@ node_modules/
 *.json
 .CondaPkg
 *.code-workspace
+data/

@@ -6,11 +6,35 @@ using Dates
 push!(LOAD_PATH, "src")
 using Ingest
 using Model
+using BanditCore
+using Storage
+
+const DB = Storage.init_storage()
 
 # --- Background Tasks ---
 @repeat 3600 "news_update" () -> Ingest.update_news!()
 
 # --- API ENDPOINTS ---
+
+@post "/user" function (req::HTTP.Request)
+	data = JSON3.read(req.body)
+
+	user_id = haskey(data, :user_id) ? string(data.user_id) : string(uuid4())
+
+	existing = Storage.load_user(DB, user_id)
+	if existing !== nothing
+		return Dict("message" => "User already exists", "user_id" => user_id)
+	end
+
+	new_profile = BanditCore.UserProfile(user_id, 128)
+	Storage.save_user(DB, new_profile)
+
+	return Dict(
+		"message" => "User initialized",
+		"user_id" => user_id,
+		"status" => "ready",
+	)
+end
 
 @get "/status" function (req::HTTP.Request)
 	psize = lock(Ingest.POOL_LOCK) do
