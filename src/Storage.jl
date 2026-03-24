@@ -35,11 +35,18 @@ function save_user(db, profile::UserProfile)
 	)
 end
 
-function load_user(db, user_id::String)
+function load_user(db::SQLite.DB, user_id::String)
 	result = DBInterface.execute(db, "SELECT state FROM users WHERE user_id = ?", [user_id])
 
 	for row in result
-		return deserialize(IOBuffer(row.state))::UserProfile
+		try
+			buf = IOBuffer(row.state)
+			return deserialize(buf)
+		catch e
+			@warn "Konnte Profil für User $user_id nicht laden (evtl. veraltetes Format). Initialisiere neu."
+			SQLite.execute(db, "DELETE FROM users WHERE user_id = ?", [user_id])
+			return nothing
+		end
 	end
 	return nothing
 end

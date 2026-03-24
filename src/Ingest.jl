@@ -48,7 +48,7 @@ function update_news!()
 				title = String(get(item, :title, ""))
 				topline = String(get(item, :topline, ""))
 				first_sentence = String(get(item, :firstSentence, ""))
-				link = String(get(item, :details, ""))
+				link = String(get(item, :shareURL, ""))
 
 				# Generate embedding from combined text
 				input = "$topline: $title. $first_sentence"
