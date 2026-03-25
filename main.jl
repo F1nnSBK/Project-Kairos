@@ -39,7 +39,7 @@ const DB = Storage.init_storage()
 	reward = BanditCore.robust_reward(profile.last_interaction, now(); τ = 3.0)
 
 	article_emb = article.embedding[1:128]
-	BanditCore.scfd_update!(profile, article_emb, reward)
+	BanditCore.update_factor!(profile, article_emb, reward)
 
 	Storage.save_user(DB, profile)
 

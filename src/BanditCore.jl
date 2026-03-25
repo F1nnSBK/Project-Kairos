@@ -3,7 +3,7 @@ module BanditCore
 using LinearAlgebra
 using Dates
 
-export UserProfile, scfd_update!, robust_reward, get_recommendations
+export UserProfile, update_factor!, robust_reward, get_recommendations
 
 mutable struct UserProfile
 	user_id::String
@@ -21,24 +21,19 @@ function UserProfile(user_id::String, dim::Int; γ = 0.99f0)
 end
 
 function robust_reward(last_time::DateTime, current_time::DateTime; τ = 3.0)
-	ms_diff = (current_time - last_time).value
-	dt = ms_diff / 1000.0
-
-	if dt < 0.5
-		return 0.0f0
-	end
-
-	weight = min(1.0f0, Float32(dt / τ))
-	return weight
+	dt = (current_time - last_time).value / 1000.0
+	dt < 0.5 && return 0.0f0
+	return min(1.0f0, Float32(dt / τ))
 end
 
-function scfd_update!(profile::UserProfile, x::Vector{Float32}, reward::Float32)
+function update_factor!(profile::UserProfile, x::Vector{Float32}, reward::Float32)
 	profile.L .*= sqrt(profile.γ)
 	profile.b .*= profile.γ
 
 	if reward > 0.05f0
-		x_norm = x ./ (norm(x) * 1.0f-6)
+		x_norm = x ./ (norm(x) + 1.0f-6)
 		update_vec = sqrt(reward * 2.0f0) .* x_norm
+
 		C = Cholesky(profile.L, 'L', 0)
 		lowrankupdate!(C, update_vec)
 		profile.b .+= reward .* x
