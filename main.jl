@@ -158,4 +158,4 @@ println("Pre-loading News Feed...")
 Ingest.update_news!()
 
 println("Kairos Engine v2 (Event-Driven) starting on port 8080...")
-serve(port = 8080)
+serve(host = "0.0.0.0", port = 8080)
