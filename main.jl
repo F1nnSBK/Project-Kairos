@@ -20,19 +20,17 @@ const DB = Storage.init_storage()
 
 	user_id = string(get(data, :user_id, ""))
 	article_id = string(get(data, :article_id, ""))
-	action = string(get(data, :action, "click")) # "click" oder "dismiss"
+	action = string(get(data, :action, "click"))
 
 	if isempty(user_id) || isempty(article_id)
 		return res(400, Dict("error" => "Missing parameters"))
 	end
 
-	# 1. Profil laden
 	profile = Storage.load_user(DB, user_id)
 	if profile === nothing
 		profile = BanditCore.UserProfile(user_id, 128)
 	end
 
-	# 2. Artikel aus dem Pool holen
 	article = lock(Ingest.POOL_LOCK) do
 		get(Ingest.ARTICLE_POOL, article_id, nothing)
 	end
@@ -41,20 +39,18 @@ const DB = Storage.init_storage()
 		return res(404, Dict("error" => "Article expired or not found"))
 	end
 
-	# 3. Belohnung/Bestrafung berechnen
-	# Wir übergeben die Aktion an BanditCore
+
 	reward = 0.0f0
 	if action == "click"
-		reward = BanditCore.robust_reward(profile.last_interaction, now(); τ = 3.0)
+		raw_reward = BanditCore.robust_reward(profile.last_interaction, now(); τ = 3.0)
+		reward = raw_reward > 0 ? 2.0f0 : 0.0f0
 	elseif action == "dismiss"
-		reward = -0.5f0 # Fixer negativer Push
+		reward = -0.05f0
 	end
 
-	# 4. Mathematisches Update
 	article_emb = article.embedding[1:128]
 	BanditCore.update_factor!(profile, article_emb, reward)
 
-	# 5. Persistence: Profil speichern UND Artikel als "gesehen" markieren
 	Storage.save_user(DB, profile)
 	Storage.mark_article_seen(DB, user_id, article_id)
 
@@ -82,16 +78,13 @@ end
 end
 
 @get "/recommend/{user_id}" function (req::HTTP.Request, user_id::String)
-	# 1. Profil und Historie laden
 	profile = Storage.load_user(DB, user_id)
 	if profile === nothing
 		profile = BanditCore.UserProfile(user_id, 128)
 	end
 
-	# NEU: Wir holen uns die IDs der Artikel, die der User schon gesehen/geklickt hat
 	seen_ids = Storage.get_seen_article_ids(DB, user_id)
 
-	# 2. Verfügbare Artikel aus dem Pool holen (Threadsicher)
 	all_articles = lock(Ingest.POOL_LOCK) do
 		collect(values(Ingest.ARTICLE_POOL))
 	end
@@ -100,32 +93,45 @@ end
 		return Dict("message" => "Pool empty", "recommendations" => [])
 	end
 
-	# 3. FILTERING: Nur Artikel, die noch nicht in seen_ids sind
 	available_articles = filter(art -> !(art.id in seen_ids), all_articles)
+
+
 
 	if isempty(available_articles)
 		return Dict("message" => "All articles seen", "recommendations" => [])
 	end
 
-	# 4. UCB-Empfehlungen berechnen
-	recommendations = BanditCore.get_recommendations(profile, available_articles, 0.1f0)
+	α_demo = 0.02f0
+	scored_recs = BanditCore.get_recommendations(profile, available_articles, α_demo)
 
-	# 5. Top 5 für das Frontend aufbereiten (Deduplizierung über Titel)
 	top_recs = []
 	seen_titles = Set{String}()
 
-	for art in recommendations
+	for item in scored_recs
+		art = item.article
+
 		if !(art.title in seen_titles)
-			push!(top_recs, Dict(
-				"id" => art.id,
-				"title" => art.title,
-				"url" => art.url,
-				"image_url" => art.image_url,
-				"timestamp" => art.timestamp,
-			))
+			println("Recommended: ", art.title, " (μ=$(round(item.mu, digits = 3)), σ=$(round(item.sigma, digits = 3)))")
+			match_pct = round(Int, clamp(item.mu * 100, 0, 100))
+
+			push!(
+				top_recs,
+				Dict(
+					"id" => art.id,
+					"title" => art.title,
+					"url" => art.url,
+					"image_url" => art.image_url,
+					"timestamp" => art.timestamp,
+					"metadata" => Dict(
+						"match_pct" => match_pct,
+						"confidence" => round(item.sigma, digits = 3),
+						"is_discovery" => item.mu < (0.02f0 * item.sigma),
+					),
+				),
+			)
 			push!(seen_titles, art.title)
 		end
-		length(top_recs) >= 5 && break
+		length(top_recs) >= 6 && break
 	end
 
 	return Dict("user" => user_id, "recommendations" => top_recs)
@@ -142,7 +148,6 @@ end
 	)
 end
 
-# Startup
 println("Pre-loading News Feed...")
 Ingest.update_news!()
 

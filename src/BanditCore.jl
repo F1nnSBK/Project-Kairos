@@ -64,11 +64,13 @@ function get_recommendations(profile::UserProfile, articles, α::Float32)
 		μ = dot(θ, x)
 		z = L_tri \ x
 		σ = norm(z)
-		return (article = art, score = μ + α * σ)
+
+		# Score = Exploitation + Exploration
+		return (article = art, score = μ + α * σ, mu = μ, sigma = σ)
 	end
 
 	sort!(scored, by = x -> x.score, rev = true)
-	return [item.article for item in scored]
+	return scored
 end
 
 end
