@@ -1,0 +1,62 @@
+# flyctl launch added from .CondaPkg/.gitignore
+
+# pixi environments
+.CondaPkg/**/.pixi
+.CondaPkg/**/*.egg-info
+
+# flyctl launch added from .CondaPkg/.pixi/.gitignore
+.CondaPkg/.pixi/**/*
+
+# flyctl launch added from .gitignore
+# Julia
+**/*.jl.cov
+**/*.jl.*.cov
+**/*.jl.mem
+**/deps/deps.jl
+
+# Build artifacts
+build
+dev
+
+# Generated documentation
+docs/build
+docs/site
+
+# OS
+**/.DS_Store
+**/Thumbs.db
+**/*.swp
+**/*.swo
+
+# IDE
+**/.vscode
+**/.idea
+**/*.sublime-project
+**/*.sublime-workspace
+
+# Environment
+**/.env
+**/.envrc
+
+# Compiled files
+**/*.o
+**/*.so
+**/*.dylib
+
+# Jupyter Notebook
+**/.ipynb_checkpoints
+
+# Python
+**/__pycache__
+**/*.py[cod]
+**/*$py.class
+
+# Misc
+**/*.log
+**/node_modules
+**/*.onnx
+**/*.json
+**/.CondaPkg
+**/*.code-workspace
+**/data
+fly.toml

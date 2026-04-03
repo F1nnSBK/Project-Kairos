@@ -49,3 +49,4 @@ node_modules/
 .CondaPkg
 *.code-workspace
 data/
+fly*
