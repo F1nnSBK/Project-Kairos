@@ -64,17 +64,20 @@ end
 
 @post "/user" function (req::HTTP.Request)
 	data = JSON3.read(req.body)
+
 	user_id = haskey(data, :user_id) ? string(data.user_id) : string(uuid4())
+	interests = get(data, :interests, [])
 
-	existing = Storage.load_user(DB, user_id)
-	if existing !== nothing
-		return Dict("message" => "User recovered", "user_id" => user_id)
-	end
+	Ingest.prime_user_profile!(DB, user_id, interests)
 
-	new_profile = BanditCore.UserProfile(user_id, 128)
-	Storage.save_user(DB, new_profile)
+	short_id = length(user_id) >= 8 ? user_id[1:8] : user_id
+	@info "User synchronized" id=short_id clusters=interests
 
-	return Dict("message" => "User initialized", "user_id" => user_id)
+	return Dict(
+		"message" => "Neural identity synchronized",
+		"user_id" => user_id,
+		"status" => isempty(interests) ? "initialized" : "aligned",
+	)
 end
 
 @get "/recommend/{user_id}" function (req::HTTP.Request, user_id::String)
@@ -104,10 +107,12 @@ end
 	α_demo = 0.02f0
 	scored_recs = BanditCore.get_recommendations(profile, available_articles, α_demo)
 
+	sorted_recs = sort(scored_recs, by = x -> x.mu, rev = true)
+
 	top_recs = []
 	seen_titles = Set{String}()
 
-	for item in scored_recs
+	for item in sorted_recs
 		art = item.article
 
 		if !(art.title in seen_titles)
@@ -148,8 +153,9 @@ end
 	)
 end
 
+
 println("Pre-loading News Feed...")
 Ingest.update_news!()
 
 println("Kairos Engine v2 (Event-Driven) starting on port 8080...")
-serveparallel(port = 8080)
+serve(port = 8080)
