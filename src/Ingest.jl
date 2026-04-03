@@ -9,6 +9,7 @@ struct Article
 	id::String
 	title::String
 	url::String
+	image_url::String
 	timestamp::DateTime
 	embedding::Vector{Float32}
 end
@@ -49,16 +50,29 @@ function update_news!()
 				topline = String(get(item, :topline, ""))
 				first_sentence = String(get(item, :firstSentence, ""))
 				link = String(get(item, :shareURL, ""))
+				teaser = get(item, :teaserImage, nothing)
+				img_url = ""
 
-				# Generate embedding from combined text
+				if teaser !== nothing
+					variants = get(teaser, :imageVariants, nothing)
+
+					if variants !== nothing
+						img_url = String(get(variants, Symbol("1x1-840"), ""))
+						if isempty(img_url)
+							img_url = String(get(variants, Symbol("1x1-640"), ""))
+						end
+					end
+				end
+
+				image_url = isempty(img_url) ? "https://via.placeholder.com/840" : img_url
+
 				input = "$topline: $title. $first_sentence"
 				emb = get_mrl_embedding(input, EMBEDDING_DIM)
 
-				ARTICLE_POOL[id] = Article(id, title, link, now(), emb)
+				ARTICLE_POOL[id] = Article(id, title, link, image_url, now(), emb)
 				new_count += 1
 			end
 
-			# Prune stale articles
 			cleanup_limit = now() - RETENTION_PERIOD
 			filter!(p -> p.second.timestamp > cleanup_limit, ARTICLE_POOL)
 		end
