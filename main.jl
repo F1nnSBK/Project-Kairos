@@ -153,9 +153,31 @@ end
 	)
 end
 
+@get "/health" function (req::HTTP.Request)
+	return Dict("status" => "ok")
+end
 
-println("Pre-loading News Feed...")
-Ingest.update_news!()
 
-println("Kairos Engine v2 (Event-Driven) starting on port 8080...")
+println("Kairos Engine v2: Starting initialization...")
+
+try
+	Model.get_session()
+	Model.get_tokenizer()
+	println("✅ Neural Core warm and ready.")
+catch e
+	@error "FATAL: Initialization failed" exception=e
+	exit(1)
+end
+
+@async begin
+	try
+		sleep(5)
+		Ingest.update_news!()
+		println("✅ Background: News updated.")
+	catch e
+		@error "Background news update failed"
+	end
+end
+
+println("Kairos Engine v2: Listening on 0.0.0.0:8080")
 serve(host = "0.0.0.0", port = 8080)

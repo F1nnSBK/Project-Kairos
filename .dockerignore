@@ -54,8 +54,7 @@ docs/site
 # Misc
 **/*.log
 **/node_modules
-**/*.onnx
-**/*.json
+
 **/.CondaPkg
 **/*.code-workspace
 **/data
